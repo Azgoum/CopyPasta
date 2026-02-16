@@ -25,9 +25,6 @@ Rendez-vous sur la page [Releases](../../releases/latest) et téléchargez l'ins
 - **Retour visuel** — notification "Copié !" à chaque copie
 - **Compact et rapide** — empreinte minimale, démarrage instantané
 
-## Capture d'écran
-
-<!-- TODO: Ajouter une capture d'écran -->
 
 ## Développement
 

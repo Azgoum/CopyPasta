@@ -41,6 +41,24 @@ body::after {
 .add-section {
   display: flex;
   gap: 8px;
+  align-items: stretch;
+}
+
+#color-picker {
+  width: 32px;
+  flex-shrink: 0;
+  border: 2px solid #2a2a4a;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.15s;
+}
+
+#color-picker:hover {
+  border-color: #e0e0e0;
+}
+
+#color-picker:active {
+  transform: scale(0.9);
 }
 
 #snippet-input {
@@ -101,14 +119,15 @@ body::after {
 
 .snippet {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 8px;
   background: #16213e;
   border: 1px solid #2a2a4a;
   border-radius: 8px;
-  padding: 8px 10px;
+  padding: 0;
   cursor: pointer;
   transition: border-color 0.2s, background 0.2s;
+  overflow: hidden;
 }
 
 .snippet:hover {
@@ -121,6 +140,12 @@ body::after {
   background: #1a2e3a;
 }
 
+.snippet-color {
+  width: 5px;
+  flex-shrink: 0;
+  border-radius: 8px 0 0 8px;
+}
+
 .snippet-text {
   flex: 1;
   font-size: 13px;
@@ -129,6 +154,7 @@ body::after {
   word-break: break-word;
   max-height: 60px;
   overflow: hidden;
+  padding: 8px 0;
 }
 
 .snippet.editing {
@@ -148,28 +174,36 @@ body::after {
   resize: none;
   outline: none;
   user-select: text;
+  margin: 4px 0;
 }
 
 .snippet-actions {
   flex-shrink: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  padding-top: 6px;
+  padding-right: 8px;
 }
 
 .delete-btn {
   background: none;
   border: none;
-  color: #666;
-  font-size: 15px;
   cursor: pointer;
   padding: 2px 4px;
   border-radius: 4px;
-  transition: color 0.2s, background 0.2s;
+  transition: background 0.2s, opacity 0.2s;
+  opacity: 0.5;
 }
 
 .delete-btn:hover {
-  color: #ef4444;
+  opacity: 1;
   background: rgba(239, 68, 68, 0.1);
+}
+
+.bin-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
 }
 
 .confirm-wrap {

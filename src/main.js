@@ -5,18 +5,62 @@ const STORE_KEY = "snippets";
 let store;
 let snippets = [];
 let activeConfirm = null;
+let activeEdit = null;
+
+const COLORS = [
+  "#ef4444", "#f97316", "#f59e0b", "#eab308",
+  "#84cc16", "#22c55e", "#10b981", "#14b8a6",
+  "#06b6d4", "#0ea5e9", "#3b82f6", "#6366f1",
+  "#8b5cf6", "#a78bfa", "#c084fc", "#d946ef",
+  "#ec4899", "#f43f5e", "#fb7185", "#fda4af",
+  "#fdba74", "#fcd34d", "#bef264", "#86efac",
+  "#6ee7b7", "#5eead4", "#67e8f9", "#7dd3fc",
+  "#93c5fd", "#a5b4fc", "#c4b5fd", "#d8b4fe",
+];
+
+let currentColorIndex = 0;
 
 const snippetList = document.getElementById("snippet-list");
 const snippetInput = document.getElementById("snippet-input");
 const addBtn = document.getElementById("add-btn");
 const toast = document.getElementById("toast");
+const colorPicker = document.getElementById("color-picker");
+
+function getUsedColors() {
+  return new Set(snippets.map((s) => s.color));
+}
+
+function randomUnusedColor() {
+  const used = getUsedColors();
+  const available = COLORS.filter((c) => !used.has(c));
+  if (available.length === 0) {
+    currentColorIndex = Math.floor(Math.random() * COLORS.length);
+  } else {
+    const pick = available[Math.floor(Math.random() * available.length)];
+    currentColorIndex = COLORS.indexOf(pick);
+  }
+  return COLORS[currentColorIndex];
+}
+
+function cycleColor() {
+  randomUnusedColor();
+  updateColorPicker();
+}
+
+function updateColorPicker() {
+  colorPicker.style.background = COLORS[currentColorIndex];
+}
 
 async function init() {
   store = await load("snippets.json", { autoSave: true });
   const saved = await store.get(STORE_KEY);
   if (Array.isArray(saved)) {
-    snippets = saved;
+    snippets = saved.map((s) =>
+      typeof s === "string" ? { text: s, color: COLORS[0] } : s
+    );
   }
+  randomUnusedColor();
+  updateColorPicker();
   render();
 }
 
@@ -24,24 +68,29 @@ function render() {
   snippetList.innerHTML = "";
 
   if (snippets.length === 0) {
-    snippetList.innerHTML = '<div class="empty-state">Aucun texte enregistré.<br>Ajoutez-en un ci-dessus !</div>';
+    snippetList.innerHTML =
+      '<div class="empty-state">Aucun texte enregistré.<br>Ajoutez-en un ci-dessus !</div>';
     return;
   }
 
-  snippets.forEach((text, index) => {
+  snippets.forEach((snippet, index) => {
     const el = document.createElement("div");
     el.className = "snippet";
 
+    const colorBar = document.createElement("div");
+    colorBar.className = "snippet-color";
+    colorBar.style.background = snippet.color;
+
     const textEl = document.createElement("span");
     textEl.className = "snippet-text";
-    textEl.textContent = text;
+    textEl.textContent = snippet.text;
 
     const actions = document.createElement("div");
     actions.className = "snippet-actions";
 
     const deleteBtn = document.createElement("button");
     deleteBtn.className = "delete-btn";
-    deleteBtn.innerHTML = "&#128465;";
+    deleteBtn.innerHTML = '<img src="/src/bin.png" alt="Supprimer" class="bin-icon">';
     deleteBtn.title = "Supprimer";
     deleteBtn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -49,12 +98,13 @@ function render() {
     });
 
     actions.appendChild(deleteBtn);
-    el.addEventListener("click", () => copySnippet(text, el));
+    el.addEventListener("click", () => copySnippet(snippet.text, el));
     el.addEventListener("contextmenu", (e) => {
       e.preventDefault();
       e.stopPropagation();
       startEdit(index, el, textEl);
     });
+    el.appendChild(colorBar);
     el.appendChild(textEl);
     el.appendChild(actions);
     snippetList.appendChild(el);
@@ -108,7 +158,7 @@ function startEdit(index, snippetEl, textEl) {
 
   const textarea = document.createElement("textarea");
   textarea.className = "edit-input";
-  textarea.value = snippets[index];
+  textarea.value = snippets[index].text;
   textarea.rows = 2;
 
   textEl.style.display = "none";
@@ -120,14 +170,14 @@ function startEdit(index, snippetEl, textEl) {
   const finish = async (save) => {
     if (save) {
       const newText = textarea.value.trim();
-      if (newText && newText !== snippets[index]) {
-        snippets[index] = newText;
+      if (newText && newText !== snippets[index].text) {
+        snippets[index].text = newText;
         await saveSnippets();
       }
     }
     textarea.remove();
     textEl.style.display = "";
-    textEl.textContent = snippets[index];
+    textEl.textContent = snippets[index].text;
     snippetEl.classList.remove("editing");
     activeEdit = null;
   };
@@ -149,8 +199,6 @@ function startEdit(index, snippetEl, textEl) {
   activeEdit = { textarea, finish };
 }
 
-let activeEdit = null;
-
 function cancelEdit() {
   if (!activeEdit) return;
   activeEdit.finish(false);
@@ -160,9 +208,11 @@ async function addSnippet() {
   const text = snippetInput.value.trim();
   if (!text) return;
 
-  snippets.unshift(text);
+  snippets.unshift({ text, color: COLORS[currentColorIndex] });
   await saveSnippets();
   snippetInput.value = "";
+  randomUnusedColor();
+  updateColorPicker();
   render();
 }
 
@@ -170,6 +220,8 @@ async function removeSnippet(index) {
   activeConfirm = null;
   snippets.splice(index, 1);
   await saveSnippets();
+  randomUnusedColor();
+  updateColorPicker();
   render();
 }
 
@@ -190,6 +242,11 @@ function showToast() {
   clearTimeout(toastTimeout);
   toastTimeout = setTimeout(() => toast.classList.add("hidden"), 1200);
 }
+
+colorPicker.addEventListener("click", (e) => {
+  e.preventDefault();
+  cycleColor();
+});
 
 addBtn.addEventListener("click", addSnippet);
 
