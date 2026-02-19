@@ -51,13 +51,35 @@ function updateColorPicker() {
   colorPicker.style.background = COLORS[currentColorIndex];
 }
 
+function sanitizeSnippet(s) {
+  if (typeof s === "string") {
+    return { text: s, color: COLORS[0] };
+  }
+  if (s && typeof s === "object" && !Array.isArray(s)) {
+    const text =
+      typeof s.text === "string"
+        ? s.text
+        : s.text != null
+          ? String(s.text)
+          : null;
+    if (!text) return null;
+    const color =
+      typeof s.color === "string" && /^#[0-9a-f]{6}$/i.test(s.color)
+        ? s.color
+        : COLORS[0];
+    return { text, color };
+  }
+  if (s != null) {
+    return { text: String(s), color: COLORS[0] };
+  }
+  return null;
+}
+
 async function init() {
   store = await load("snippets.json", { autoSave: true });
   const saved = await store.get(STORE_KEY);
-  if (Array.isArray(saved)) {
-    snippets = saved.map((s) =>
-      typeof s === "string" ? { text: s, color: COLORS[0] } : s
-    );
+  if (Array.isArray(saved) && saved.length > 0) {
+    snippets = saved.map(sanitizeSnippet).filter(Boolean);
   }
   randomUnusedColor();
   updateColorPicker();
