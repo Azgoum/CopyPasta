@@ -112,7 +112,7 @@ function render() {
 
     const deleteBtn = document.createElement("button");
     deleteBtn.className = "delete-btn";
-    deleteBtn.innerHTML = '<img src="/src/bin.png" alt="Supprimer" class="bin-icon">';
+    deleteBtn.innerHTML = `<img src="${new URL("./bin.png", import.meta.url).href}" alt="Supprimer" class="bin-icon">`;
     deleteBtn.title = "Supprimer";
     deleteBtn.addEventListener("click", (e) => {
       e.stopPropagation();
