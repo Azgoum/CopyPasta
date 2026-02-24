@@ -4,6 +4,9 @@ import { load } from "@tauri-apps/plugin-store";
 const STORE_KEY = "snippets";
 const MAX_SNIPPETS = 200;
 const MAX_TEXT_LENGTH = 10000;
+const TOAST_DURATION = 1200;
+const COPIED_DURATION = 800;
+
 let store;
 let snippets = [];
 let activeConfirm = null;
@@ -28,13 +31,10 @@ const snippetInput = document.getElementById("snippet-input");
 const addBtn = document.getElementById("add-btn");
 const toast = document.getElementById("toast");
 const colorPicker = document.getElementById("color-picker");
+const binIconTemplate = document.getElementById("bin-icon-template");
 
-function getUsedColors() {
-  return new Set(snippets.map((s) => s.color));
-}
-
-function randomUnusedColor() {
-  const used = getUsedColors();
+function pickNextColor() {
+  const used = new Set(snippets.map((s) => s.color));
   const available = COLORS.filter((c) => !used.has(c));
   if (available.length === 0) {
     currentColorIndex = Math.floor(Math.random() * COLORS.length);
@@ -42,15 +42,6 @@ function randomUnusedColor() {
     const pick = available[Math.floor(Math.random() * available.length)];
     currentColorIndex = COLORS.indexOf(pick);
   }
-  return COLORS[currentColorIndex];
-}
-
-function cycleColor() {
-  randomUnusedColor();
-  updateColorPicker();
-}
-
-function updateColorPicker() {
   colorPicker.style.background = COLORS[currentColorIndex];
 }
 
@@ -78,6 +69,13 @@ function sanitizeSnippet(s) {
   return null;
 }
 
+function createEmptyState(message) {
+  const el = document.createElement("div");
+  el.className = "empty-state";
+  el.textContent = message;
+  return el;
+}
+
 async function init() {
   try {
     store = await load("snippets.json", { autoSave: true });
@@ -85,26 +83,27 @@ async function init() {
     if (Array.isArray(saved) && saved.length > 0) {
       snippets = saved.map(sanitizeSnippet).filter(Boolean);
     }
-    randomUnusedColor();
-    updateColorPicker();
+    pickNextColor();
     render();
   } catch (err) {
-    snippetList.innerHTML =
-      '<div class="empty-state">Erreur au chargement des données.<br>Redémarrez l\'application.</div>';
+    snippetList.replaceChildren(
+      createEmptyState("Erreur au chargement des données. Redémarrez l'application.")
+    );
     console.error("init error:", err);
   }
 }
 
 function render() {
-  snippetList.innerHTML = "";
+  snippetList.replaceChildren();
 
   if (snippets.length === 0) {
-    snippetList.innerHTML =
-      '<div class="empty-state">Aucun texte enregistré.<br>Ajoutez-en un ci-dessus !</div>';
+    snippetList.appendChild(
+      createEmptyState("Aucun texte enregistré. Ajoutez-en un ci-dessus !")
+    );
     return;
   }
 
-  snippets.forEach((snippet, index) => {
+  snippets.forEach((snippet) => {
     const el = document.createElement("div");
     el.className = "snippet";
     el.title = "Clic gauche : copier · Clic droit : modifier";
@@ -122,11 +121,11 @@ function render() {
 
     const deleteBtn = document.createElement("button");
     deleteBtn.className = "delete-btn";
-    deleteBtn.innerHTML = `<svg class="bin-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`;
     deleteBtn.title = "Supprimer";
+    deleteBtn.appendChild(binIconTemplate.content.cloneNode(true));
     deleteBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      showConfirm(index, actions);
+      showConfirm(snippet, actions);
     });
 
     actions.appendChild(deleteBtn);
@@ -134,7 +133,7 @@ function render() {
     el.addEventListener("contextmenu", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      startEdit(index, el, textEl);
+      startEdit(snippet, el, textEl);
     });
     el.appendChild(colorBar);
     el.appendChild(textEl);
@@ -143,27 +142,27 @@ function render() {
   });
 }
 
-function showConfirm(index, actionsEl) {
+function showConfirm(snippet, actionsEl) {
   cancelConfirm();
 
   const deleteBtn = actionsEl.querySelector(".delete-btn");
-  deleteBtn.style.display = "none";
+  deleteBtn.classList.add("d-none");
 
   const confirmWrap = document.createElement("div");
   confirmWrap.className = "confirm-wrap";
 
   const yesBtn = document.createElement("button");
   yesBtn.className = "confirm-yes";
-  yesBtn.innerHTML = "&#10003;";
+  yesBtn.textContent = "\u2713";
   yesBtn.title = "Confirmer";
   yesBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    removeSnippet(index);
+    removeSnippet(snippet);
   });
 
   const noBtn = document.createElement("button");
   noBtn.className = "confirm-no";
-  noBtn.innerHTML = "&#10007;";
+  noBtn.textContent = "\u2717";
   noBtn.title = "Annuler";
   noBtn.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -179,21 +178,22 @@ function showConfirm(index, actionsEl) {
 
 function cancelConfirm() {
   if (!activeConfirm) return;
-  activeConfirm.deleteBtn.style.display = "";
+  activeConfirm.deleteBtn.classList.remove("d-none");
   activeConfirm.confirmWrap.remove();
   activeConfirm = null;
 }
 
-function startEdit(index, snippetEl, textEl) {
+function startEdit(snippet, snippetEl, textEl) {
+  if (busy) return;
   cancelConfirm();
   cancelEdit();
 
   const textarea = document.createElement("textarea");
   textarea.className = "edit-input";
-  textarea.value = snippets[index].text;
+  textarea.value = snippet.text;
   textarea.rows = 2;
 
-  textEl.style.display = "none";
+  textEl.classList.add("d-none");
   snippetEl.insertBefore(textarea, textEl);
   snippetEl.classList.add("editing");
   textarea.focus();
@@ -205,14 +205,14 @@ function startEdit(index, snippetEl, textEl) {
     finished = true;
     if (save) {
       const newText = textarea.value.trim();
-      if (newText && newText !== snippets[index].text) {
-        snippets[index].text = newText.slice(0, MAX_TEXT_LENGTH);
+      if (newText && newText !== snippet.text) {
+        snippet.text = newText.slice(0, MAX_TEXT_LENGTH);
         await saveSnippets();
       }
     }
     textarea.remove();
-    textEl.style.display = "";
-    textEl.textContent = snippets[index].text;
+    textEl.classList.remove("d-none");
+    textEl.textContent = snippet.text;
     snippetEl.classList.remove("editing");
     activeEdit = null;
   };
@@ -244,7 +244,7 @@ async function addSnippet() {
   const text = snippetInput.value.trim();
   if (!text) return;
   if (snippets.length >= MAX_SNIPPETS) {
-    showToastMessage(`Maximum ${MAX_SNIPPETS} textes atteint`);
+    showToast(`Maximum ${MAX_SNIPPETS} textes atteint`);
     return;
   }
 
@@ -253,31 +253,34 @@ async function addSnippet() {
     snippets.unshift({ text: text.slice(0, MAX_TEXT_LENGTH), color: COLORS[currentColorIndex] });
     await saveSnippets();
     snippetInput.value = "";
-    randomUnusedColor();
-    updateColorPicker();
+    pickNextColor();
     render();
   } catch (err) {
     snippets.shift();
-    showToastMessage("Erreur lors de la sauvegarde");
+    showToast("Erreur lors de la sauvegarde");
     console.error("addSnippet error:", err);
   } finally {
     busy = false;
   }
 }
 
-async function removeSnippet(index) {
+async function removeSnippet(snippet) {
   if (busy) return;
   busy = true;
   activeConfirm = null;
-  const removed = snippets.splice(index, 1)[0];
+  const index = snippets.indexOf(snippet);
+  if (index < 0) {
+    busy = false;
+    return;
+  }
+  snippets.splice(index, 1);
   try {
     await saveSnippets();
-    randomUnusedColor();
-    updateColorPicker();
+    pickNextColor();
     render();
   } catch (err) {
-    snippets.splice(index, 0, removed);
-    showToastMessage("Erreur lors de la suppression");
+    snippets.splice(index, 0, snippet);
+    showToast("Erreur lors de la suppression");
     console.error("removeSnippet error:", err);
     render();
   } finally {
@@ -289,33 +292,30 @@ async function copySnippet(text, el) {
   try {
     await writeText(text);
     el.classList.add("copied");
-    showToast();
-    setTimeout(() => el.classList.remove("copied"), 800);
+    showToast("Copié !");
+    setTimeout(() => el.classList.remove("copied"), COPIED_DURATION);
   } catch (err) {
-    showToastMessage("Erreur de copie");
+    showToast("Erreur de copie");
     console.error("copySnippet error:", err);
   }
 }
 
 async function saveSnippets() {
   await store.set(STORE_KEY, snippets);
+  await store.save();
 }
 
 let toastTimeout;
-function showToast() {
-  showToastMessage("Copié !");
-}
-
-function showToastMessage(msg) {
+function showToast(msg) {
   toast.textContent = msg;
   toast.classList.remove("hidden");
   clearTimeout(toastTimeout);
-  toastTimeout = setTimeout(() => toast.classList.add("hidden"), 1200);
+  toastTimeout = setTimeout(() => toast.classList.add("hidden"), TOAST_DURATION);
 }
 
 colorPicker.addEventListener("click", (e) => {
   e.preventDefault();
-  cycleColor();
+  pickNextColor();
 });
 
 addBtn.addEventListener("click", addSnippet);

@@ -107,6 +107,8 @@ body::after {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: #2a2a4a transparent;
 }
 
 #snippet-list::-webkit-scrollbar {
@@ -267,4 +269,17 @@ body::after {
   color: #555;
   font-size: 13px;
   margin-top: 40px;
+}
+
+.d-none {
+  display: none !important;
+}
+
+.delete-btn:focus-visible,
+.confirm-yes:focus-visible,
+.confirm-no:focus-visible,
+#add-btn:focus-visible,
+#color-picker:focus-visible {
+  outline: 2px solid #a78bfa;
+  outline-offset: 2px;
 }
