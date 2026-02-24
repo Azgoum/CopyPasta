@@ -73,6 +73,7 @@ body::after {
   resize: none;
   outline: none;
   transition: border-color 0.2s;
+  user-select: text;
 }
 
 #snippet-input:focus {
@@ -204,6 +205,7 @@ body::after {
   width: 16px;
   height: 16px;
   display: block;
+  color: #ef4444;
 }
 
 .confirm-wrap {
